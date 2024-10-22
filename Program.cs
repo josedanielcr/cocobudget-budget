@@ -2,6 +2,7 @@ using System.Reflection;
 using Carter;
 using FluentValidation;
 using web_api.Configurations;
+using web_api.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 Assembly assembly = typeof(Program).Assembly;
@@ -22,6 +23,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.ApplyMigrations();
 }
 
 app.MapCarter();
