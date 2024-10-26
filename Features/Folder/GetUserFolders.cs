@@ -63,7 +63,7 @@ public class GetUserFoldersEndpoint : ICarterModule
 
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapGet("api/folders/{userId}", async (Guid userId, ISender sender) =>
+        app.MapGet("api/folder/{userId}", async (Guid userId, ISender sender) =>
         {
             var query = new GetUserFolders.Query { UserId = userId };
             var result = await sender.Send(query);
