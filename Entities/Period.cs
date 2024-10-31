@@ -20,7 +20,7 @@ public class Period : BaseEntity
         AmountSpent = 0;
         BudgetAmount = 0;
         DayLength = SetDayLength(dayLength, startDate);
-        EndDate = startDate.AddDays(dayLength - 1);
+        EndDate = startDate.AddDays(DayLength);
     }
     
     private int SetDayLength(int dayLength, DateTime startDate)
