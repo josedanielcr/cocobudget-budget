@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using web_api.Contracts.Folder.Responses;
 using web_api.Database;
+using web_api.Extensions;
 using web_api.Shared;
 
 namespace web_api.Features.Folder;
@@ -44,13 +45,23 @@ public static class GetUserFolders
                     validationResult.ToString()));
             }
             
+            var period = await PeriodExtensions.GetUserActivePeriodAsync(_dbContext, request.UserId,cancellationToken);
+            
+            if (period == null)
+            {
+                return Result.Failure<List<FolderResponse>>(new Error("CreateFolder.Period",
+                    "No active period found for the user"));
+            }
+            
             var folders = await _dbContext.Folders
-                .Where(f => f.UserId == request.UserId)
+                .Include(f => f.Period)
+                .Where(f => f.UserId == request.UserId && f.Period.Id == period.Id)
                 .ToListAsync(cancellationToken);
+            
             return folders.Count != 0
                 ? folders
                     .Select(f => new FolderResponse(f.Id, f.Name, f.Icon, 
-                        f.Color, f.UserId, f.IsActive, f.CreatedOn, f.ModifiedOn))
+                        f.Color, f.UserId, f.IsActive, f.CreatedOn, f.ModifiedOn,f.Period.Id))
                     .ToList() 
                 : Result.Failure<List<FolderResponse>>(new Error("Folder.NotFound", $"No folders found for user with id {request.UserId}."));
         }

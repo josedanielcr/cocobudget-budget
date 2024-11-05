@@ -1,9 +1,11 @@
 using Carter;
 using FluentValidation;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using web_api.Contracts.Folder.Requests;
 using web_api.Contracts.Folder.Responses;
 using web_api.Database;
+using web_api.Extensions;
 using web_api.Shared;
 
 namespace web_api.Features.Folder;
@@ -49,12 +51,21 @@ public static class CreateFolder
                     validationResult.ToString()));
             }
 
+            var period = await PeriodExtensions.GetUserActivePeriodAsync(_dbContext, request.UserId, cancellationToken);
+            
+            if (period == null)
+            {
+                return Result.Failure<FolderResponse>(new Error("CreateFolder.Period",
+                    "No active period found for the user"));
+            }
+
             var folder = new Entities.Folder
             {
                 Name = request.Name,
                 Icon = request.Icon,
                 Color = request.Color,
-                UserId = request.UserId
+                UserId = request.UserId,
+                Period = period
             };
 
             _dbContext.Folders.Add(folder);
@@ -67,7 +78,8 @@ public static class CreateFolder
                 folder.UserId,
                 folder.IsActive,
                 folder.CreatedOn,
-                folder.ModifiedOn
+                folder.ModifiedOn,
+                folder.Period.Id
             );
         }
     }
