@@ -60,8 +60,7 @@ public static class GetUserFolders
             
             return folders.Count != 0
                 ? folders
-                    .Select(f => new FolderResponse(f.Id, f.Name, f.Icon, 
-                        f.Color, f.UserId, f.IsActive, f.CreatedOn, f.ModifiedOn,f.Period.Id))
+                    .Select(f => new FolderResponse(f.Id, f.Name, f.Description, f.UserId, f.IsActive, f.CreatedOn, f.ModifiedOn,f.Period.Id))
                     .ToList() 
                 : Result.Failure<List<FolderResponse>>(new Error("Folder.NotFound", $"No folders found for user with id {request.UserId}."));
         }
