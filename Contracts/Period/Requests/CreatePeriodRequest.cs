@@ -8,4 +8,6 @@ public class CreatePeriodRequest
     public required PeriodLength Length { get; set; }
     public int DayLength { get; set; }
     public required Guid UserId { get; set; }
+
+    public bool ShouldClone { get; set; }
 }
