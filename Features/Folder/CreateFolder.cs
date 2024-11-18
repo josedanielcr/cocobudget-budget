@@ -15,7 +15,6 @@ public static class CreateFolder
     public class Command : IRequest<Result<FolderResponse>>
     {
         public string Name { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
         public Guid UserId { get; set; }
     }
 
@@ -24,7 +23,6 @@ public static class CreateFolder
         public Validator()
         {
             RuleFor(x => x.Name).NotEmpty();
-            RuleFor(x => x.Description).NotEmpty();
             RuleFor(x => x.UserId).NotEmpty();
         }
     }
@@ -60,7 +58,6 @@ public static class CreateFolder
             var folder = new Entities.Folder
             {
                 Name = request.Name,
-                Description = request.Description,
                 UserId = request.UserId,
                 Period = period
             };
@@ -70,7 +67,6 @@ public static class CreateFolder
             return new FolderResponse(
                 folder.Id,
                 folder.Name,
-                folder.Description,
                 folder.UserId,
                 folder.IsActive,
                 folder.CreatedOn,
@@ -92,7 +88,6 @@ public class CreateFolderEndpoint : ICarterModule
             var command = new CreateFolder.Command
             {
                 Name = request.Name,
-                Description = request.Description,
                 UserId = request.UserId
             };
 
