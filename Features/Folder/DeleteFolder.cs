@@ -57,7 +57,7 @@ public static class DeleteFolder
             _context.Folders.Update(folder);
             await _context.SaveChangesAsync(cancellationToken);
             
-            return new FolderResponse(folder.Id, folder.Name, folder.Description, folder.UserId, folder.IsActive, folder.CreatedOn, folder.ModifiedOn, folder.Period!.Id);
+            return new FolderResponse(folder.Id, folder.Name, folder.UserId, folder.IsActive, folder.CreatedOn, folder.ModifiedOn, folder.Period!.Id);
         }
     }
 }

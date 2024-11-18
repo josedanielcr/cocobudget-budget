@@ -16,7 +16,6 @@ public static class UpdateFolder
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
     }
     
     public class Validator : AbstractValidator<Command>
@@ -25,7 +24,6 @@ public static class UpdateFolder
         {
             RuleFor(x => x.Id).NotEmpty();
             RuleFor(x => x.Name).NotEmpty();
-            RuleFor(x => x.Description).NotEmpty();
         }
     }
 
@@ -59,10 +57,9 @@ public static class UpdateFolder
             }
             
             folder.Name = request.Name;
-            folder.Description = request.Description;
             _context.Folders.Update(folder);
             await _context.SaveChangesAsync(cancellationToken);
-            return new FolderResponse(folder.Id, folder.Name, folder.Description, folder.UserId, folder.IsActive, folder.CreatedOn, folder.ModifiedOn, folder.Period.Id);
+            return new FolderResponse(folder.Id, folder.Name, folder.UserId, folder.IsActive, folder.CreatedOn, folder.ModifiedOn, folder.Period.Id);
         }
     }
 }
@@ -80,7 +77,6 @@ public class UpdateFolderEndpoint : ICarterModule
             {
                 Id = folderId,
                 Name = request.Name,
-                Description = request.Description
             };
             
             var result = await sender.Send(command);

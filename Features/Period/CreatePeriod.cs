@@ -36,13 +36,13 @@ public static class CreatePeriod
 
         private bool BeValidDayLength(int dayLength, PeriodLength commandLength)
         {
-            // Si el periodo es Custom, entonces los días deben ser mayor que 0
+            // Si el periodo es Custom, entonces los dï¿½as deben ser mayor que 0
             return commandLength != PeriodLength.Custom || dayLength > 0;
         }
 
         private bool BeValidStartDate(DateTime startDate, PeriodLength length, int dayLength)
         {
-            // La fecha actual debe ser menor o igual que la fecha de inicio más la duración del periodo
+            // La fecha actual debe ser menor o igual que la fecha de inicio mï¿½s la duraciï¿½n del periodo
             var numberOfDays = PeriodExtensions.GetNumberOfDays(startDate, dayLength, length);
             return DateTime.Now <= startDate.AddDays(numberOfDays);
         }
@@ -113,14 +113,13 @@ public static class CreatePeriod
                 {
                     GeneralId = oldFolder.GeneralId,
                     Name = oldFolder.Name,
-                    Description = oldFolder.Description,
                     Period = newPeriod,
                     UserId = oldFolder.UserId,
                     IsActive = true
                 };
                 _dbContext.Folders.Add(newFolder);
 
-                // Replicar categorías asociadas a la carpeta
+                // Replicar categorï¿½as asociadas a la carpeta
                 //var oldCategories = await _dbContext.Categories
                 //    .Where(c => c.FolderId == oldFolder.Id)
                 //    .ToListAsync(cancellationToken);
