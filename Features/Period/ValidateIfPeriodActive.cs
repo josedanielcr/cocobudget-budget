@@ -82,7 +82,7 @@ public class ValidateIfPeriodActiveEndpoint : ICarterModule
 
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapGet("api/period/validateIfPeriodActive", async (Guid userId, ISender sender) =>
+        app.MapGet("api/period/validate/{userId:Guid}/active", async (Guid userId, ISender sender) =>
         {
             var query = new ValidateIfPeriodActive.Query
             {
