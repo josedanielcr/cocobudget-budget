@@ -91,12 +91,7 @@ public class ValidateIfPeriodActiveEndpoint : ICarterModule
 
             var result = await sender.Send(query);
 
-            if (result.IsFailure)
-            {
-                return Results.BadRequest(new { error = result.Error });
-            }
-
-            return Results.Ok(result.Value);
+            return result.IsFailure ? Results.BadRequest(result.Error) : Results.Ok(result.Value);
         }).WithTags(RouteTag);
     }
 }
