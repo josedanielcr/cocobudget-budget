@@ -55,7 +55,7 @@ public static class UpdateCategory
                 return Result.Failure<CategoryResponse>(new Error("UpdateCategory.NotFound", "Category not found"));
             }
 
-            category.Name = request.Name;
+            /*category.Name = request.Name;
             category.Icon = request.Icon;
             category.ColorHex = request.ColorHex;
             category.BudgetAmount = request.BudgetAmount;
@@ -74,7 +74,8 @@ public static class UpdateCategory
                 category.CreatedOn,
                 category.ModifiedOn,
                 category.UserId
-            );
+            );*/
+            return null;
         }
     }
 }

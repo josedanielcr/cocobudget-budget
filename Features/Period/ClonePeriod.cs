@@ -92,7 +92,7 @@ public static class ClonePeriod
                 dbContext.Folders.Add(newFolder);
 
                 // Replicar categorias asociadas a la carpeta
-                foreach (var oldCategory in oldFolder.Categories ?? Enumerable.Empty<Entities.Category>())
+                /*foreach (var oldCategory in oldFolder.Categories ?? Enumerable.Empty<Entities.Category>())
                 {
                     var newCategory = new Entities.Category
                     {
@@ -104,7 +104,7 @@ public static class ClonePeriod
                         IsActive = true
                     };
                     dbContext.Categories.Add(newCategory);
-                }
+                }*/
             }
         }
     }

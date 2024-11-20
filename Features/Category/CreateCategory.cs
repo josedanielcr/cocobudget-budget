@@ -51,11 +51,9 @@ public static class CreateCategory
                     validationResult.ToString()));
             }
 
-            var category = new Entities.Category
+            /*var category = new Entities.Category
             {
                 Name = request.Name,
-                Icon = request.Icon,
-                ColorHex = request.ColorHex,
                 BudgetAmount = request.BudgetAmount,
                 FolderId = request.FolderId
             };
@@ -66,8 +64,6 @@ public static class CreateCategory
             return new CategoryResponse(
                 category.Id,
                 category.Name,
-                category.Icon,
-                category.ColorHex,
                 category.BudgetAmount,
                 category.AmountSpent,
                 category.FolderId,
@@ -75,7 +71,8 @@ public static class CreateCategory
                 category.CreatedOn,
                 category.ModifiedOn,
                 category.UserId
-            );
+            );*/
+            return null;
         }
     }
 }
