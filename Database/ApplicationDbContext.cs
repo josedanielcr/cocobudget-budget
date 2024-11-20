@@ -12,6 +12,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Folder>().HasKey(t => t.Id);
         modelBuilder.Entity<Category>().HasKey(c => c.Id);
         modelBuilder.Entity<Period>().HasKey(p => p.Id);
+        modelBuilder.Entity<GeneralCategory>().HasKey(g => g.Id);
 
         modelBuilder.Entity<Category>()
               .Property(c => c.BudgetAmount)
@@ -38,4 +39,5 @@ public class ApplicationDbContext : DbContext
     public DbSet<Folder> Folders { get; set; }
     public DbSet<Category> Categories { get; set; }
     public DbSet<Period> Periods { get; set; }
+    public DbSet<GeneralCategory> GeneralCategories { get; set; }
 }

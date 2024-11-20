@@ -30,7 +30,7 @@ public static class GetCategory
                 return Result.Failure<CategoryResponse>(new Error("GetCategory.NotFound", "Category not found"));
             }
 
-            return new CategoryResponse(
+            /*return new CategoryResponse(
                 category.Id,
                 category.Name,
                 category.Icon,
@@ -42,7 +42,8 @@ public static class GetCategory
                 category.CreatedOn,
                 category.ModifiedOn,
                 category.UserId
-            );
+            );*/
+            return null;
         }
     }
 }
