@@ -2,6 +2,7 @@ using Carter;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using web_api.Contracts.Category.Responses;
 using web_api.Contracts.Folder.Requests;
 using web_api.Contracts.Folder.Responses;
 using web_api.Database;
@@ -71,7 +72,8 @@ public static class CreateFolder
                 folder.IsActive,
                 folder.CreatedOn,
                 folder.ModifiedOn,
-                folder.Period.Id
+                folder.Period.Id,
+                new List<CategoryResponse>()
             );
         }
     }
