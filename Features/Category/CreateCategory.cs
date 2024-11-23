@@ -4,6 +4,9 @@ using MediatR;
 using web_api.Contracts.Category.Requests;
 using web_api.Contracts.Category.Responses;
 using web_api.Database;
+using web_api.Entities;
+using web_api.Enums;
+using web_api.Extensions;
 using web_api.Shared;
 
 namespace web_api.Features.Category;
@@ -12,71 +15,123 @@ public static class CreateCategory
 {
     public class Command : IRequest<Result<CategoryResponse>>
     {
-        public string Name { get; set; } = string.Empty;
-        public string Icon { get; set; } = string.Empty;
-        public string ColorHex { get; set; } = string.Empty;
-        public decimal BudgetAmount { get; set; }
-        public Guid FolderId { get; set; }
+        public required Guid UserId { get; set; }
+        public required Guid FolderId { get; set; }
+        public CategoryType CategoryType { get; set; } = CategoryType.Fixed;
+        public DateTime? FinalDate { get; set; }
+        public required string Currency { get; set; }
+        public required decimal GeneralTargetAmount { get; set; }
+        public decimal TargetAmount { get; set; }
+        public required string Name { get; set; }
     }
 
     public class Validator : AbstractValidator<Command>
     {
         public Validator()
         {
-            RuleFor(x => x.Name).NotEmpty();
-            RuleFor(x => x.Icon).NotEmpty();
-            RuleFor(x => x.ColorHex).NotEmpty();
-            RuleFor(x => x.BudgetAmount).GreaterThanOrEqualTo(0); ;
+            RuleFor(x => x.UserId).NotEmpty();
             RuleFor(x => x.FolderId).NotEmpty();
+            RuleFor(x => x.Currency).NotEmpty();
+            RuleFor(x => x.GeneralTargetAmount).NotEmpty();
+            RuleFor(x => x.Name).NotEmpty();
         }
     }
 
-    internal sealed class Handler : IRequestHandler<Command, Result<CategoryResponse>>
+    internal sealed class Handler(ApplicationDbContext dbContext, IValidator<Command> validator)
+        : IRequestHandler<Command, Result<CategoryResponse>>
     {
-        private readonly ApplicationDbContext _dbContext;
-        private readonly IValidator<Command> _validator;
-
-        public Handler(ApplicationDbContext dbContext, IValidator<Command> validator)
-        {
-            _dbContext = dbContext;
-            _validator = validator;
-        }
 
         public async Task<Result<CategoryResponse>> Handle(Command request, CancellationToken cancellationToken)
         {
-            var validationResult = _validator.Validate(request);
+            var validationResult = await validator.ValidateAsync(request, cancellationToken);
             if (!validationResult.IsValid)
             {
                 return Result.Failure<CategoryResponse>(new Error("CreateCategory.Validation",
                     validationResult.ToString()));
             }
 
-            /*var category = new Entities.Category
+            var folder = await dbContext.GetFolderAsync(request.FolderId, cancellationToken);
+            if (folder.UserId != request.UserId)
             {
-                Name = request.Name,
-                BudgetAmount = request.BudgetAmount,
-                FolderId = request.FolderId
+                return Result.Failure<CategoryResponse>(new Error("CreateCategory.FolderNotFound",
+                    "Folder not found"));
+            }
+            
+            GeneralCategory generalCategory = await this.CreateGeneralCategory(dbContext,request, folder);
+            var activePeriod = await dbContext.GetUserActivePeriodAsync(request.UserId,cancellationToken);
+            
+            if (activePeriod == null)
+            {
+                return Result.Failure<CategoryResponse>(new Error("CreateCategory.ActivePeriodNotFound",
+                    "Active period not found"));
+            }
+            
+            Entities.Category result = await this.CreateCategory(dbContext, request, generalCategory, activePeriod);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            
+            return new CategoryResponse
+            {
+                Id = result.Id,
+                GeneralId = result.GeneralId,
+                Name = result.Name,
+                FolderId = result.FolderId,
+                GeneralCategory = result.GeneralCategory,
+                GeneralCategoryId = result.GeneralCategoryId,
+                TargetAmount = result.TargetAmount,
+                BudgetAmount = result.BudgetAmount,
+                AmountSpent = result.AmountSpent,
+                CreatedOn = result.CreatedOn,
+                ModifiedOn = result.ModifiedOn,
+                IsActive = result.IsActive
+            };
+        }
+
+        private async Task<GeneralCategory> CreateGeneralCategory(ApplicationDbContext dbContext, Command request, Entities.Folder folder)
+        {
+            var generalCategory = new Entities.GeneralCategory
+            {
+                Currency = request.Currency,
+                TargetAmount = request.GeneralTargetAmount,
+                FinalDate = request.FinalDate,
+                CategoryType = request.CategoryType,
+                UserId = request.UserId
             };
 
-            _dbContext.Categories.Add(category);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await dbContext.GeneralCategories.AddAsync(generalCategory);
+            return generalCategory;
+        }
+        
+        private async Task<Entities.Category> CreateCategory(ApplicationDbContext applicationDbContext, Command request,
+            GeneralCategory generalCategory, Entities.Period activePeriod)
+        {
+            var categoryTargetAmount = this.CalculateTargetAmount(request, generalCategory, activePeriod);
+            var category = new Entities.Category
+            {
+                GeneralId = Guid.NewGuid(),
+                Name = request.Name,
+                FolderId = request.FolderId,
+                GeneralCategory = generalCategory,
+                GeneralCategoryId = generalCategory.Id,
+                TargetAmount = categoryTargetAmount,
+                BudgetAmount = 0,
+                AmountSpent = 0
+            };
+            await applicationDbContext.Categories.AddAsync(category);
+            return category;
+        }
 
-            return new CategoryResponse(
-                category.Id,
-                category.Name,
-                category.BudgetAmount,
-                category.AmountSpent,
-                category.FolderId,
-                category.IsActive,
-                category.CreatedOn,
-                category.ModifiedOn,
-                category.UserId
-            );*/
-            return null;
+        private decimal CalculateTargetAmount(Command request, GeneralCategory generalCategory, Entities.Period activePeriod)
+        {
+            if (generalCategory.CategoryType == CategoryType.Fixed) return generalCategory.TargetAmount;
+            if (generalCategory.FinalDate == null) return request.TargetAmount;
+            var now = DateTime.Now;
+            var difference = request.FinalDate!.Value - now;
+            var totalDays = (int)difference.TotalDays;
+            var amountOfPeriods = totalDays / activePeriod.DayLength;
+            return Math.Round(generalCategory.TargetAmount / amountOfPeriods,2);
         }
     }
 }
-
 
 public class CreateCategoryEndpoint : ICarterModule
 {
@@ -89,10 +144,13 @@ public class CreateCategoryEndpoint : ICarterModule
             var command = new CreateCategory.Command
             {
                 Name = request.Name,
-                Icon = request.Icon,
-                ColorHex = request.ColorHex,
-                BudgetAmount = request.BudgetAmount,
-                FolderId = request.FolderId
+                Currency = request.Currency,
+                GeneralTargetAmount = request.GeneralTargetAmount,
+                TargetAmount = request.TargetAmount,
+                FinalDate = request.FinalDate,
+                UserId = request.UserId,
+                FolderId = request.FolderId,
+                CategoryType = request.CategoryType
             };
 
             var result = await sender.Send(command);

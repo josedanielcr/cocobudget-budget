@@ -14,5 +14,4 @@ public sealed class Category : BaseEntity
     public decimal BudgetAmount { get; set; }
     public decimal AmountSpent { get; set; }
     public decimal AmountRemaining => BudgetAmount - AmountSpent;
-    public Guid UserId { get; set; }
 }
