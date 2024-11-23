@@ -2,6 +2,7 @@ using Carter;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using web_api.Contracts.Category.Responses;
 using web_api.Contracts.Folder.Responses;
 using web_api.Database;
 using web_api.Extensions;
@@ -55,12 +56,28 @@ public static class GetUserFolders
             
             var folders = await _dbContext.Folders
                 .Include(f => f.Period)
+                .Include(f => f.Categories)
                 .Where(f => f.UserId == request.UserId && f.Period.Id == period.Id)
                 .ToListAsync(cancellationToken);
             
             return folders.Count != 0
                 ? folders
-                    .Select(f => new FolderResponse(f.Id, f.Name, f.UserId, f.IsActive, f.CreatedOn, f.ModifiedOn,f.Period.Id))
+                    .Select(f => new FolderResponse(f.Id, f.Name, f.UserId, f.IsActive, f.CreatedOn, f.ModifiedOn,f.Period.Id
+                        ,f.Categories!.Select(c => new CategoryResponse
+                        {
+                            Id = c.Id,
+                            GeneralId = c.GeneralId,
+                            Name = c.Name,
+                            FolderId = c.FolderId,
+                            GeneralCategory = c.GeneralCategory,
+                            GeneralCategoryId = c.GeneralCategoryId,
+                            TargetAmount = c.TargetAmount,
+                            BudgetAmount = c.BudgetAmount,
+                            AmountSpent = c.AmountSpent,
+                            CreatedOn = c.CreatedOn,
+                            ModifiedOn = c.ModifiedOn,
+                            IsActive = c.IsActive
+                        }).ToList()))
                     .ToList() 
                 : Result.Failure<List<FolderResponse>>(new Error("Folder.NotFound", $"No folders found for user with id {request.UserId}."));
         }
