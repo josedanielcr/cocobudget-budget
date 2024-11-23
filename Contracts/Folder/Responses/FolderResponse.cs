@@ -18,11 +18,11 @@ public class FolderResponse : BaseEntity
         CreatedOn = createdOn;
         ModifiedOn = modifiedOn;
         PeriodId = periodId;
-        Category = categories;
+        Categories = categories;
     }
     
     [MaxLength(128)] public string Name { get; set; }
     public Guid UserId { get; set; }
     public Guid PeriodId { get; set; }
-    public List<CategoryResponse> Category { get; set; }
+    public List<CategoryResponse> Categories { get; set; }
 }
