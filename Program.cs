@@ -12,6 +12,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddAppKeyVault(builder.Configuration);
 builder.Services.AddDatabase(builder.Configuration);
 builder.Services.AddAppCors();
+builder.Services.AddAppCurrencyApi(builder.Configuration);
+builder.Services.AddScoped<CurrencyExtension>();
 builder.Services.AddMediatR(config => config.RegisterServicesFromAssembly(assembly));
 builder.Services.AddValidatorsFromAssembly(assembly);
 builder.Services.AddCarter();
