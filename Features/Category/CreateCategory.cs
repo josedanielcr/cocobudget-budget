@@ -80,6 +80,7 @@ public static class CreateCategory
                 TargetAmount = result.TargetAmount,
                 BudgetAmount = result.BudgetAmount,
                 AmountSpent = result.AmountSpent,
+                AmountRemaining = result.AmountRemaining,
                 CreatedOn = result.CreatedOn,
                 ModifiedOn = result.ModifiedOn,
                 IsActive = result.IsActive
@@ -114,7 +115,8 @@ public static class CreateCategory
                 GeneralCategoryId = generalCategory.Id,
                 TargetAmount = categoryTargetAmount,
                 BudgetAmount = 0,
-                AmountSpent = 0
+                AmountSpent = 0,
+                AmountRemaining = categoryTargetAmount
             };
             await applicationDbContext.Categories.AddAsync(category);
             return category;

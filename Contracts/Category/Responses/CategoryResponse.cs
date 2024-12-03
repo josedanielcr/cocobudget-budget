@@ -13,5 +13,5 @@ public class CategoryResponse : BaseEntity
     public decimal TargetAmount { get; set; }
     public decimal BudgetAmount { get; set; } 
     public decimal AmountSpent { get; set; }
-    public decimal AmountRemaining => BudgetAmount - AmountSpent;
+    public decimal AmountRemaining { get; set; }
 }

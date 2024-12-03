@@ -74,6 +74,7 @@ public static class GetUserFolders
                             TargetAmount = c.TargetAmount,
                             BudgetAmount = c.BudgetAmount,
                             AmountSpent = c.AmountSpent,
+                            AmountRemaining = c.AmountRemaining,
                             CreatedOn = c.CreatedOn,
                             ModifiedOn = c.ModifiedOn,
                             IsActive = c.IsActive
