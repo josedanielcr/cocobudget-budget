@@ -56,7 +56,8 @@ public static class GetUserFolders
             
             var folders = await _dbContext.Folders
                 .Include(f => f.Period)
-                .Include(f => f.Categories)
+                .Include(f => f.Categories.Where(category => category.IsActive)) // Filter active categories
+                .ThenInclude(category => category.GeneralCategory)
                 .Where(f => f.UserId == request.UserId && f.Period.Id == period.Id)
                 .ToListAsync(cancellationToken);
             
