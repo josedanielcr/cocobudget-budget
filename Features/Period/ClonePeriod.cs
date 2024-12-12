@@ -9,6 +9,7 @@ using web_api.Extensions;
 using web_api.Shared;
 using web_api.Entities;
 
+
 namespace web_api.Features.Period;
 
 public static class ClonePeriod
@@ -26,86 +27,132 @@ public static class ClonePeriod
         }
     }
 
-    internal sealed class Handler : IRequestHandler<Command, Result<PeriodResponse>>
+    internal sealed class Handler(ApplicationDbContext dbContext, IValidator<Command> validator)
+        : IRequestHandler<Command, Result<PeriodResponse>>
     {
-        private readonly ApplicationDbContext _dbContext;
-        private readonly IValidator<Command> _validator;
-
-        public Handler(ApplicationDbContext dbContext, IValidator<Command> validator)
-        {
-            _dbContext = dbContext;
-            _validator = validator;
-        }
-        
         public async Task<Result<PeriodResponse>> Handle(Command request, CancellationToken cancellationToken)
         {
-            var validationResult = await _validator.ValidateAsync(request, cancellationToken);
+            var validationResult = await validator.ValidateAsync(request, cancellationToken);
             if (!validationResult.IsValid)
             {
                 return Result.Failure<PeriodResponse>(new Error("ClonePeriod.Validation", validationResult.ToString()));
             }
 
-            var oldPeriod = await PeriodExtensions.GetUserActivePeriodAsync(_dbContext, request.UserId, cancellationToken);
-            if (oldPeriod == null)
+            var currentPeriod = await dbContext.Periods
+                .Where(x => x.UserId == request.UserId)
+                .Where(x => x.IsActive == true)
+                .OrderByDescending(x => x.EndDate)
+                .FirstOrDefaultAsync(cancellationToken);
+            
+            if (currentPeriod == null)
             {
-                return Result.Failure<PeriodResponse>(new Error("ClonePeriod.NotFound", "No se encontró un periodo activo para este usuario."));
+                return Result.Failure<PeriodResponse>(new Error("ClonePeriod.NotFound", "No active period found"));
             }
-            
-            Entities.Period newPeriod = new Entities.Period(oldPeriod.EndDate, oldPeriod.Length, oldPeriod.DayLength, request.UserId);
-            
-            await ReplicateCategoriesAndFolders(_dbContext, oldPeriod, newPeriod, cancellationToken);
-            _dbContext.Periods.Add(newPeriod);
-            await _dbContext.SaveChangesAsync(cancellationToken);
 
-            var response = new PeriodResponse(
-                newPeriod.Id,
-                newPeriod.StartDate,
-                newPeriod.EndDate,
-                newPeriod.Length,
-                newPeriod.DayLength,
-                newPeriod.UserId,
-                newPeriod.AmountSpent,
-                newPeriod.BudgetAmount
-            );
-            return response;
+            try
+            {
+                var newPeriod = CloneCurrentPeriod(currentPeriod);
+                await CloneCurrPeriodFoldersToNewPeriod(currentPeriod, newPeriod, cancellationToken);
+                currentPeriod.IsActive = false;
+                dbContext.Periods.Update(currentPeriod);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return new PeriodResponse(
+                    newPeriod.Id,
+                    newPeriod.StartDate,
+                    newPeriod.EndDate,
+                    newPeriod.Length,
+                    newPeriod.DayLength,
+                    newPeriod.UserId,
+                    newPeriod.AmountSpent,
+                    newPeriod.BudgetAmount
+                );
+            }
+            catch (Exception e)
+            {
+                return Result.Failure<PeriodResponse>(new Error("ClonePeriod.Error", e.Message));
+            }
         }
-        
-        private async Task ReplicateCategoriesAndFolders(ApplicationDbContext dbContext, web_api.Entities.Period oldPeriod, web_api.Entities.Period newPeriod, CancellationToken cancellationToken)
-        {
-            // Obtener folders del periodo anterior
-            var oldFolders = await dbContext.Folders
-                .Where(f => f.Period.Id == oldPeriod.Id)
-                .Where(f => f.IsActive == true)
-                .Include(f => f.Categories)
-                .ToListAsync(cancellationToken);
 
-            foreach (var oldFolder in oldFolders)
+        private async Task CloneCurrPeriodFoldersToNewPeriod(Entities.Period currentPeriod, Entities.Period newPeriod, CancellationToken cancellationToken)
+        {
+            var activeCurrPeriodFolders = await dbContext.Folders
+                .Where(x => x.Period.Id == currentPeriod.Id)
+                .Where(x => x.IsActive == true)
+                .ToListAsync(cancellationToken);
+            
+            foreach (var folder in activeCurrPeriodFolders)
             {
                 var newFolder = new Entities.Folder
                 {
-                    GeneralId = oldFolder.GeneralId,
-                    Name = oldFolder.Name,
+                    Name = folder.Name,
+                    GeneralId = folder.GeneralId,
                     Period = newPeriod,
-                    UserId = oldFolder.UserId,
+                    UserId = newPeriod.UserId,
+                    CreatedOn = DateTime.Now,
+                    ModifiedOn = DateTime.Now,
                     IsActive = true
                 };
+                newFolder.Categories = await CloneCurrFolderCategoriesToNewFolder(folder, newFolder, cancellationToken);
                 dbContext.Folders.Add(newFolder);
-
-                // Replicar categorias asociadas a la carpeta
-                /*foreach (var oldCategory in oldFolder.Categories ?? Enumerable.Empty<Entities.Category>())
-                {
-                    var newCategory = new Entities.Category
-                    {
-                        Name = oldCategory.Name,
-                        Folder = newFolder,
-                        BudgetAmount = oldCategory.AmountRemaining,
-                        AmountSpent = 0, // Restablece el gasto a 0 para el nuevo periodo
-                        UserId = oldCategory.UserId,
-                        IsActive = true
-                    };
-                    dbContext.Categories.Add(newCategory);
-                }*/
             }
+        }
+
+        private async Task<List<Entities.Category>?> CloneCurrFolderCategoriesToNewFolder(Entities.Folder currFolder, Entities.Folder newFolder, CancellationToken cancellationToken)
+        {
+            var activeFolderCategories = await dbContext.Categories
+                .Include(x => x.GeneralCategory)
+                .Where(x => x.FolderId == currFolder.Id)
+                .Where(x => x.IsActive == true)
+                .ToListAsync(cancellationToken);
+            
+            var newFolderCategories = new List<Entities.Category>();
+            foreach (var category in activeFolderCategories)
+            {
+                var generalCategoryUpdated = await UpdateGeneralCategory(category);
+                var newCategory = new Entities.Category
+                {
+                    CreatedOn = DateTime.Now,
+                    ModifiedOn = DateTime.Now,
+                    IsActive = true,
+                    GeneralId = category.GeneralId,
+                    Name = category.Name,
+                    Folder = newFolder,
+                    FolderId = newFolder.Id,
+                    GeneralCategory = generalCategoryUpdated,
+                    GeneralCategoryId = generalCategoryUpdated.Id,
+                    TargetAmount = category.TargetAmount,
+                    BudgetAmount = 0,
+                    AmountSpent = 0,
+                    AmountRemaining = category.TargetAmount - category.AmountSpent
+                };
+                dbContext.Categories.Add(newCategory);
+                newFolderCategories.Add(newCategory);
+            }
+            return newFolderCategories;
+        }
+
+        private async Task<GeneralCategory> UpdateGeneralCategory(Entities.Category category)
+        {
+            var generalCategory = await dbContext.GeneralCategories
+                .Where(x => x.Id == category.GeneralCategoryId)
+                .FirstOrDefaultAsync();
+
+            if (generalCategory == null)
+            {
+                throw new BadHttpRequestException("General category not found");
+            }
+            
+            generalCategory.TargetAmount -= category.AmountSpent;
+            dbContext.GeneralCategories.Update(generalCategory);
+            return generalCategory;
+        }
+
+        private Entities.Period CloneCurrentPeriod(Entities.Period currentPeriod)
+        {
+            var period = new Entities.Period(currentPeriod.EndDate.AddDays(1), currentPeriod.Length,
+                currentPeriod.DayLength, currentPeriod.UserId);
+            dbContext.Periods.Add(period);
+            return period;
         }
     }
 }
