@@ -13,6 +13,8 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Category>().HasKey(c => c.Id);
         modelBuilder.Entity<Period>().HasKey(p => p.Id);
         modelBuilder.Entity<GeneralCategory>().HasKey(g => g.Id);
+        modelBuilder.Entity<CreditCard>().HasKey(c => c.Id);
+        modelBuilder.Entity<BankAccount>().HasKey(b => b.Id);
 
         modelBuilder.Entity<Category>()
               .Property(c => c.BudgetAmount)
@@ -40,4 +42,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<Category> Categories { get; set; }
     public DbSet<Period> Periods { get; set; }
     public DbSet<GeneralCategory> GeneralCategories { get; set; }
+    public DbSet<CreditCard> CreditCards { get; set; }
+    public DbSet<BankAccount> BankAccounts { get; set; }
 }
