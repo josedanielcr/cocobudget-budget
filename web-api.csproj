@@ -32,8 +32,4 @@
       <Folder Include="Migrations\" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Compile Include="Contracts\Account\Requests\CreateBankAccountRequest.cs" />
-    </ItemGroup>
-
 </Project>

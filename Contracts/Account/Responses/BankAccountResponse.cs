@@ -18,10 +18,10 @@ public class BankAccountResponse(
     public bool IsActive { get; set; } = isActive;
     public DateTime CreatedOn { get; set; } = createdOn;
     public DateTime ModifiedOn { get; set; } = modifiedOn;
-    public required string Name { get; set; } = name;
-    public required string BankName { get; set; } = bankName;
+    public string Name { get; set; } = name;
+    public string BankName { get; set; } = bankName;
     public decimal CurrentBalance { get; set; } = currentBalance;
     public string Currency { get; set; } = currency;
-    [MaxLength(4)] public required string AccountNumber { get; set; } = accountNumber;
+    [MaxLength(4)] public string AccountNumber { get; set; } = accountNumber;
     public string Notes { get; set; } = notes;
 }
