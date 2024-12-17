@@ -9,4 +9,5 @@ public class Account : BaseEntity
     public string Currency { get; set; } = string.Empty;
     [MaxLength(4)] public required string AccountNumber { get; set; } // just the last 4 digits of the account number for visual properties
     public string Notes { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
 }
