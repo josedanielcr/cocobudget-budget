@@ -12,7 +12,8 @@ public class BankAccountResponse(
     decimal currentBalance,
     string currency,
     string accountNumber,
-    string notes)
+    string notes,
+    Guid userId)
 {
     public Guid Id { get; set; } = id;
     public bool IsActive { get; set; } = isActive;
@@ -24,4 +25,5 @@ public class BankAccountResponse(
     public string Currency { get; set; } = currency;
     [MaxLength(4)] public string AccountNumber { get; set; } = accountNumber;
     public string Notes { get; set; } = notes;
+    public Guid UserId { get; set; } = userId;
 }

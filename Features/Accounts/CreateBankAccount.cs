@@ -16,6 +16,7 @@ public static class CreateBankAccount
 {
     public class Command : IRequest<Result<BankAccountResponse>>
     {
+        public required Guid UserId { get; set; }
         public required string Name { get; set; }
         public required string BankName { get; set; }
         public decimal CurrentBalance { get; set; } = 0;
@@ -33,6 +34,7 @@ public static class CreateBankAccount
             RuleFor(x => x.Currency).NotEmpty();
             RuleFor(x => x.AccountNumber).NotEmpty();
             RuleFor(x => x.Notes).NotEmpty();
+            RuleFor(x => x.UserId).NotEmpty();
         }
     }
 
@@ -53,7 +55,8 @@ public static class CreateBankAccount
                 CurrentBalance = request.CurrentBalance,
                 Currency = request.Currency,
                 AccountNumber = request.AccountNumber,
-                Notes = request.Notes
+                Notes = request.Notes,
+                UserId = request.UserId
             };
             
             await dbContext.BankAccounts.AddAsync(newBankAccount, cancellationToken);
@@ -69,7 +72,8 @@ public static class CreateBankAccount
                 newBankAccount.CurrentBalance,
                 newBankAccount.Currency,
                 newBankAccount.AccountNumber,
-                newBankAccount.Notes
+                newBankAccount.Notes,
+                newBankAccount.UserId
             );
         }
         
@@ -92,6 +96,11 @@ public static class CreateBankAccount
             {
                 return Result.Failure(new Error("CreateBankAccount.CurrentBalance", "Current balance cannot be negative"));
             }
+            
+            if(request.UserId == Guid.Empty)
+            {
+                return Result.Failure(new Error("CreateBankAccount.UserId", "User ID cannot be empty"));
+            }
 
             return Result.Success();
         }
@@ -113,7 +122,8 @@ public class CreateBankAccountEndpoint : ICarterModule
                 CurrentBalance = request.CurrentBalance,
                 Currency = request.Currency,
                 AccountNumber = request.AccountNumber,
-                Notes = request.Notes
+                Notes = request.Notes,
+                UserId = request.UserId
             };
 
             var result = await sender.Send(command);
