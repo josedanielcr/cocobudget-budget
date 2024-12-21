@@ -34,6 +34,7 @@ public static class GetUserBankAccounts
 
             var bankAccounts = await dbContext.BankAccounts
                 .Where(x => x.UserId == request.UserId)
+                .Where(x => x.IsActive == true)
                 .ToListAsync(cancellationToken);
 
             if (bankAccounts.Count == 0)
