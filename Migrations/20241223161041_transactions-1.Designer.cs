@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using web_api.Database;
 
@@ -11,9 +12,11 @@ using web_api.Database;
 namespace web_api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241223161041_transactions-1")]
+    partial class transactions1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,7 +25,7 @@ namespace web_api.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("web_api.Entities.BankAccount", b =>
+            modelBuilder.Entity("web_api.Entities.Account", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -33,10 +36,6 @@ namespace web_api.Migrations
                         .HasMaxLength(4)
                         .HasColumnType("nvarchar(4)");
 
-                    b.Property<string>("BankName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");
 
@@ -46,6 +45,11 @@ namespace web_api.Migrations
 
                     b.Property<decimal>("CurrentBalance")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasMaxLength(13)
+                        .HasColumnType("nvarchar(13)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -66,7 +70,11 @@ namespace web_api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("BankAccounts");
+                    b.ToTable("Accounts");
+
+                    b.HasDiscriminator().HasValue("Account");
+
+                    b.UseTphMappingStrategy();
                 });
 
             modelBuilder.Entity("web_api.Entities.Category", b =>
@@ -117,62 +125,6 @@ namespace web_api.Migrations
                     b.HasIndex("GeneralCategoryId");
 
                     b.ToTable("Categories");
-                });
-
-            modelBuilder.Entity("web_api.Entities.CreditCard", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AccountNumber")
-                        .IsRequired()
-                        .HasMaxLength(4)
-                        .HasColumnType("nvarchar(4)");
-
-                    b.Property<DateTime>("CreatedOn")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("CreditLimit")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("CurrentBalance")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("ModifiedOn")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("PaymentOffset")
-                        .HasColumnType("int");
-
-                    b.Property<int>("StatementClosingDay")
-                        .HasColumnType("int");
-
-                    b.PrimitiveCollection<string>("SupportedCurrencies")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("CreditCards");
                 });
 
             modelBuilder.Entity("web_api.Entities.Folder", b =>
@@ -317,9 +269,6 @@ namespace web_api.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("RequireCategoryReview")
-                        .HasColumnType("bit");
-
                     b.Property<int>("Type")
                         .HasColumnType("int");
 
@@ -330,6 +279,37 @@ namespace web_api.Migrations
                     b.HasIndex("LinkedCategoryId");
 
                     b.ToTable("Transactions");
+                });
+
+            modelBuilder.Entity("web_api.Entities.BankAccount", b =>
+                {
+                    b.HasBaseType("web_api.Entities.Account");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasDiscriminator().HasValue("BankAccount");
+                });
+
+            modelBuilder.Entity("web_api.Entities.CreditCard", b =>
+                {
+                    b.HasBaseType("web_api.Entities.Account");
+
+                    b.Property<decimal>("CreditLimit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PaymentOffset")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StatementClosingDay")
+                        .HasColumnType("int");
+
+                    b.PrimitiveCollection<string>("SupportedCurrencies")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasDiscriminator().HasValue("CreditCard");
                 });
 
             modelBuilder.Entity("web_api.Entities.Category", b =>
@@ -364,7 +344,7 @@ namespace web_api.Migrations
 
             modelBuilder.Entity("web_api.Entities.Transaction", b =>
                 {
-                    b.HasOne("web_api.Entities.BankAccount", "LinkedAccount")
+                    b.HasOne("web_api.Entities.Account", "LinkedAccount")
                         .WithMany()
                         .HasForeignKey("LinkedAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
