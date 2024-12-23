@@ -13,6 +13,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Category>().HasKey(c => c.Id);
         modelBuilder.Entity<Period>().HasKey(p => p.Id);
         modelBuilder.Entity<GeneralCategory>().HasKey(g => g.Id);
+        modelBuilder.Entity<Transaction>().HasKey(t => t.Id);
         modelBuilder.Entity<CreditCard>().HasKey(c => c.Id);
         modelBuilder.Entity<BankAccount>().HasKey(b => b.Id);
 
@@ -36,6 +37,10 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Period>()
             .Property(c => c.AmountSpent)
             .HasColumnType("decimal(18,2)");
+        
+        modelBuilder.Entity<Transaction>()
+            .Property(c => c.Amount)
+            .HasColumnType("decimal(18,2)");
     }
 
     public DbSet<Folder> Folders { get; set; }
@@ -44,4 +49,5 @@ public class ApplicationDbContext : DbContext
     public DbSet<GeneralCategory> GeneralCategories { get; set; }
     public DbSet<CreditCard> CreditCards { get; set; }
     public DbSet<BankAccount> BankAccounts { get; set; }
+    public DbSet<Transaction> Transactions { get; set; }
 }
