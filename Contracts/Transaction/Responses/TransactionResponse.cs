@@ -1,6 +1,8 @@
+using web_api.Entities;
+
 namespace web_api.Contracts.Transaction.Responses;
 
-public class TransactionResponse
+public class TransactionResponse : BaseEntity
 {
     public required decimal Amount { get; set; }
     public int Type { get; set; }

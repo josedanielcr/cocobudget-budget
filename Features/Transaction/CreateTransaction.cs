@@ -66,6 +66,10 @@ public static class CreateTransaction
 
             return new TransactionResponse
             {
+                Id = transaction.Id,
+                CreatedOn = transaction.CreatedOn,
+                ModifiedOn = transaction.ModifiedOn,
+                IsActive = transaction.IsActive,
                 Amount = transaction.Amount,
                 Type = (int)transaction.Type,
                 LinkedAccountId = transaction.LinkedAccountId,
