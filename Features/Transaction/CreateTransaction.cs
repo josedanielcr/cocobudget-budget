@@ -18,7 +18,7 @@ public static class CreateTransaction
         public required decimal Amount { get; set; }
         public int Type { get; set; }
         public required Guid LinkedAccountId { get; set; }
-        public required Guid LinkedCategoryId { get; set; }
+        public Guid? LinkedCategoryId { get; set; }
         public string Note { get; set; } = null!;
     }
 
@@ -29,7 +29,6 @@ public static class CreateTransaction
             RuleFor(x => x.Amount).GreaterThan(0);
             RuleFor(x => x.Type).GreaterThanOrEqualTo(0).LessThanOrEqualTo(2);
             RuleFor(x => x.LinkedAccountId).NotEmpty();
-            RuleFor(x => x.LinkedCategoryId).NotEmpty();
         }
     }
 
@@ -56,7 +55,7 @@ public static class CreateTransaction
                 Amount = request.Amount,
                 Type = (TransactionType) request.Type,
                 LinkedAccountId = request.LinkedAccountId,
-                LinkedCategoryId = request.LinkedCategoryId,
+                LinkedCategoryId = request.LinkedCategoryId ?? null,
                 Note = request.Note
             };
             dbContext.Transactions.Add(transaction);
@@ -73,7 +72,7 @@ public static class CreateTransaction
                 Amount = transaction.Amount,
                 Type = (int)transaction.Type,
                 LinkedAccountId = transaction.LinkedAccountId,
-                LinkedCategoryId = transaction.LinkedCategoryId,
+                LinkedCategoryId = transaction.LinkedCategoryId ?? null,
                 Note = transaction.Note,
                 RequireCategoryReview = transaction.RequireCategoryReview
             };
@@ -82,6 +81,27 @@ public static class CreateTransaction
         // If the transaction currency is different from the account currency it needs to be reviewed so the app knows
         // with which exchange rate to convert the amount
         private void HandlePostTransaction(Entities.Transaction transaction, BankAccount account, Entities.Category category)
+        {
+            switch (transaction.Type)
+            {
+                case TransactionType.Income:
+                    HandleIncomeTransaction(transaction, account);
+                    break;
+                case TransactionType.Expense:
+                    HandleExpenseTransaction(transaction, account, category);
+                    break;
+                case TransactionType.NotTrackable:
+                    HandleNotTrackableTransaction(transaction, account);
+                    break;
+            }
+        }
+
+        private void HandleNotTrackableTransaction(Entities.Transaction transaction, BankAccount account)
+        {
+            account.CurrentBalance -= transaction.Amount;
+        }
+
+        private void HandleExpenseTransaction(Entities.Transaction transaction, BankAccount account, Entities.Category category)
         {
             account.CurrentBalance -= transaction.Amount;
             if (category.GeneralCategory.Currency != account.Currency)
@@ -100,10 +120,15 @@ public static class CreateTransaction
             }
         }
 
+        private void HandleIncomeTransaction(Entities.Transaction transaction, BankAccount account)
+        {
+            account.CurrentBalance += transaction.Amount;
+        }
+
         private async Task<Result> ValidateRequestAsync(Command request, CancellationToken cancellationToken,
             Entities.Category? category, BankAccount? account)
         {
-            if (category is null)
+            if (category is null && request.Type == (int)TransactionType.Expense)
             {
                 return Result.Failure(new Error("CreateTransaction.CategoryNotFound",
                     $"Category with id {request.LinkedCategoryId} not found"));
@@ -133,18 +158,26 @@ public static class CreateTransaction
                     "Account is inactive"));
             }
             
-            if(account.CurrentBalance < request.Amount)
+            if(account.CurrentBalance < request.Amount && request.Type == (int)TransactionType.Expense)
             {
                 return Result.Failure(new Error("CreateTransaction.InsufficientFunds",
                     "Insufficient funds in account"));
             }
+
+            if (request.Type != (int)TransactionType.Expense) return Result.Success();
             
-            if(category.GeneralCategory.TargetAmount < request.Amount)
+            if (category == null || category.GeneralCategory == null)
             {
-                return Result.Failure(new Error("CreateTransaction.TargetAmountExceeded",
-                    "Amount exceeds target amount"));
+                return Result.Failure(new Error("CreateTransaction.CategoryMissing", 
+                    "The category or its general category is missing for this expense."));
             }
-            
+
+            if (category.GeneralCategory.TargetAmount < request.Amount)
+            {
+                return Result.Failure(new Error("CreateTransaction.TargetAmountExceeded", 
+                    "Amount exceeds the target amount."));
+            }
+
             return Result.Success();
         }
     }
