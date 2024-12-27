@@ -39,6 +39,7 @@ public static class GetBankAccountTransactions
             var transactions = await dbContext.Transactions
                 .Where(x => x.LinkedAccountId == request.BankAccountId)
                 .Where(x => x.IsActive == true)
+                .OrderByDescending(x => x.CreatedOn)
                 .ToListAsync(cancellationToken);
 
             var responseArr = transactions.Select(transaction => new TransactionResponse
