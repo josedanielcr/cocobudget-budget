@@ -39,4 +39,16 @@ public class CurrencyExtension(IHttpClientFactory httpClientFactory, IConfigurat
 
         return currencies;
     }
+
+    public async Task<ExchangeRateResponse> GetExchangeRateAsync(string baseCurrency, string targetCurrency)
+    {
+        var uri = configuration["ExchangeRateApi:Uri"];
+        var endpoint = uri + _exchangeRateApiKey + "/pair/" + baseCurrency + "/" + targetCurrency;
+        var response = await _httpClientFactory.GetAsync(endpoint);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        var exchangeRateResponse = JsonSerializer.Deserialize<ExchangeRateResponse>(content);
+        return exchangeRateResponse 
+               ?? throw new Exception("Failed to deserialize exchange rate response");
+    }
 }
