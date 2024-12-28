@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using web_api.Contracts.Transaction.Requests;
 using web_api.Contracts.Transaction.Responses;
 using web_api.Database;
+using web_api.Extensions;
 using web_api.Shared;
 
 namespace web_api.Features.Transaction;
@@ -36,9 +37,28 @@ public static class GetBankAccountTransactions
                 return Result.Failure<List<TransactionResponse>>(validationResult.Error);
             }
             
+            var bankAccount = await dbContext.BankAccounts
+                .FirstOrDefaultAsync(x => x.Id == request.BankAccountId, cancellationToken);
+            
+            if (bankAccount == null)
+            {
+                return Result.Failure<List<TransactionResponse>>(new Error("GetBankAccountTransaction.BankAccountNotFound",
+                    $"Bank account with id {request.BankAccountId} not found"));
+            }
+
+            var activePeriod = await PeriodExtensions.GetUserActivePeriodAsync(dbContext,
+                bankAccount.UserId, cancellationToken);
+            
+            if (activePeriod == null)
+            {
+                return Result.Failure<List<TransactionResponse>>(new Error("GetBankAccountTransaction.NoActivePeriod",
+                    $"No active period found for user with id {bankAccount.UserId}"));
+            }
+            
             var transactions = await dbContext.Transactions
                 .Where(x => x.LinkedAccountId == request.BankAccountId)
                 .Where(x => x.IsActive == true)
+                .Where(x => x.CreatedOn >= activePeriod.StartDate && x.CreatedOn <= activePeriod.EndDate)
                 .OrderByDescending(x => x.CreatedOn)
                 .ToListAsync(cancellationToken);
 
