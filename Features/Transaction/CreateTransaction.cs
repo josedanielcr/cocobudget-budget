@@ -7,6 +7,7 @@ using web_api.Contracts.Transaction.Responses;
 using web_api.Database;
 using web_api.Entities;
 using web_api.Enums;
+using web_api.Extensions;
 using web_api.Shared;
 
 namespace web_api.Features.Transaction;
@@ -80,7 +81,7 @@ public static class CreateTransaction
 
         // If the transaction currency is different from the account currency it needs to be reviewed so the app knows
         // with which exchange rate to convert the amount
-        private void HandlePostTransaction(Entities.Transaction transaction, BankAccount account, Entities.Category category)
+        private async void HandlePostTransaction(Entities.Transaction transaction, BankAccount account, Entities.Category category)
         {
             switch (transaction.Type)
             {
@@ -88,7 +89,7 @@ public static class CreateTransaction
                     HandleIncomeTransaction(transaction, account);
                     break;
                 case TransactionType.Expense:
-                    HandleExpenseTransaction(transaction, account, category);
+                    TransactionExtensions.HandleExpenseTransaction(dbContext, transaction, account, category);
                     break;
                 case TransactionType.NotTrackable:
                     HandleNotTrackableTransaction(transaction, account);
@@ -99,25 +100,6 @@ public static class CreateTransaction
         private void HandleNotTrackableTransaction(Entities.Transaction transaction, BankAccount account)
         {
             account.CurrentBalance -= transaction.Amount;
-        }
-
-        private void HandleExpenseTransaction(Entities.Transaction transaction, BankAccount account, Entities.Category category)
-        {
-            account.CurrentBalance -= transaction.Amount;
-            if (category.GeneralCategory.Currency != account.Currency)
-            {
-                transaction.RequireCategoryReview = true;
-                return;
-            }
-            
-            category.AmountSpent += transaction.Amount;
-            category.AmountRemaining = category.TargetAmount - category.AmountSpent;
-            
-            // Custom categories have a target that should decrease when a transaction is made / fixed categories don't
-            if (category.GeneralCategory.CategoryType == CategoryType.Custom)
-            {
-                category.GeneralCategory.TargetAmount -= transaction.Amount;
-            }
         }
 
         private void HandleIncomeTransaction(Entities.Transaction transaction, BankAccount account)

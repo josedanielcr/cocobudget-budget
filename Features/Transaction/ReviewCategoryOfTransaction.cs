@@ -42,7 +42,7 @@ public static class ReviewCategoryOfTransaction
                 .Include(x => x.GeneralCategory)
                 .Where(x => x.Id == transaction!.LinkedCategoryId)
                 .FirstOrDefaultAsync(cancellationToken);
-
+            
             var validationResult = await ValidateRequestAsync(request, cancellationToken, transaction, category);
 
             if (!validationResult.IsSuccess)
@@ -50,23 +50,22 @@ public static class ReviewCategoryOfTransaction
                 return Result.Failure<TransactionResponse>(validationResult.Error);
             }
             
-            var categoryAmount = transaction!.Amount * request.ExchangeRate;
-            category!.AmountSpent += categoryAmount;
-            category.AmountRemaining = category.TargetAmount - category.AmountSpent;
+            var effect = await dbContext.TransactionCategoryEffects
+                .Where(x => x.TransactionId == transaction!.Id)
+                .Where(x => x.CategoryId == category!.Id)
+                .FirstOrDefaultAsync(cancellationToken);
             
-            // Custom categories have a target that should decrease when a transaction is made / fixed categories don't
-            if (category.GeneralCategory.CategoryType == CategoryType.Custom)
+            if (effect == null)
             {
-                category.GeneralCategory.TargetAmount -= categoryAmount;
+                return Result.Failure<TransactionResponse>(new Error("ReviewCategoryOfTransaction.EffectNotFound",
+                    $"Effect for transaction with id {request.TransactionId} and category with id {category.Id} not found"));
             }
-
-            transaction.RequireCategoryReview = false;
-            dbContext.Update(transaction);
-            dbContext.Update(category);
+            
+            ExecuteTransactionConversion(request, transaction!, category!, effect);
             await dbContext.SaveChangesAsync(cancellationToken);
             return new TransactionResponse
             {
-                Id = transaction.Id,
+                Id = transaction!.Id,
                 CreatedOn = transaction.CreatedOn,
                 ModifiedOn = transaction.ModifiedOn,
                 IsActive = transaction.IsActive,
@@ -78,7 +77,31 @@ public static class ReviewCategoryOfTransaction
                 RequireCategoryReview = transaction.RequireCategoryReview
             };
         }
-        
+
+        private void ExecuteTransactionConversion(Command request, Entities.Transaction transaction,
+            Entities.Category category, Entities.TransactionCategoryEffect effect)
+        {
+            var categoryAmount = transaction!.Amount * request.ExchangeRate;
+            category!.AmountSpent += categoryAmount;
+            category.AmountRemaining = category.TargetAmount - category.AmountSpent;
+            
+            // Custom categories have a target that should decrease when a transaction is made / fixed categories don't
+            if (category.GeneralCategory.CategoryType == CategoryType.Custom)
+            {
+                category.GeneralCategory.TargetAmount -= categoryAmount;
+            }
+
+            transaction.RequireCategoryReview = false;
+            
+            //update the transaction effect
+            effect.Amount = categoryAmount;
+            effect.ConversionRate = request.ExchangeRate;
+            
+            dbContext.Update(effect);
+            dbContext.Update(transaction);
+            dbContext.Update(category);
+        }
+
         private async Task<Result> ValidateRequestAsync(Command request, CancellationToken cancellationToken,
             Entities.Transaction? transaction, Entities.Category? category)
         {
