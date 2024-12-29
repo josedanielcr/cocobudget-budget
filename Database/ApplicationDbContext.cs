@@ -16,6 +16,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Transaction>().HasKey(t => t.Id);
         modelBuilder.Entity<CreditCard>().HasKey(c => c.Id);
         modelBuilder.Entity<BankAccount>().HasKey(b => b.Id);
+        modelBuilder.Entity<TransactionCategoryEffect>().HasKey(tce => tce.Id);
 
         modelBuilder.Entity<Category>()
               .Property(c => c.BudgetAmount)
@@ -50,4 +51,5 @@ public class ApplicationDbContext : DbContext
     public DbSet<CreditCard> CreditCards { get; set; }
     public DbSet<BankAccount> BankAccounts { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
+    public DbSet<TransactionCategoryEffect> TransactionCategoryEffects { get; set; }
 }
