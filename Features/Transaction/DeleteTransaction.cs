@@ -1,9 +1,13 @@
+using Carter;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Mvc.Diagnostics;
+using Microsoft.EntityFrameworkCore;
+using web_api.Contracts.Transaction.Requests;
 using web_api.Contracts.Transaction.Responses;
 using web_api.Database;
 using web_api.Enums;
+using web_api.Extensions;
 using web_api.Shared;
 
 namespace web_api.Features.Transaction;
@@ -41,44 +45,14 @@ public static class DeleteTransaction
                     $"Transaction with id {request.TransactionId} not found"));
             }
 
-            return await HandleTransactionDelete(transaction);
+            var result = await HandleTransactionDelete(transaction);
+            transaction.IsActive = false;
+            dbContext.Transactions.Update(transaction);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return result;
         }
 
         private async Task<Result<bool>> HandleTransactionDelete(Entities.Transaction transaction)
-        {
-            switch (transaction.Type)
-            {
-                case TransactionType.Income:
-                    return await HandleIncomeTransaction(transaction);
-                case TransactionType.Expense:
-                    return await HandleExpenseTransaction(transaction);
-                case TransactionType.NotTrackable:
-                    return await HandleNotTrackableTransaction(transaction);
-                default:
-                    return Result.Failure<bool>(new Error("DeleteTransaction.UnknownTransactionType",
-                        $"Unknown transaction type {transaction.Type}"));
-            }
-        }
-
-        private async Task<Result<bool>> HandleNotTrackableTransaction(Entities.Transaction transaction)
-        {
-            throw new NotImplementedException();
-        }
-
-        /*
-         * If an expense transaction is deleted, the account balance will be increased by the amount of the transaction.
-         * The category balance will be increased by the amount of the transaction. (in case of custom the general category target will be increased as well)
-         * if the category has a different currency it needs to be converted to the account 
-         */
-        private async Task<Result<bool>> HandleExpenseTransaction(Entities.Transaction transaction)
-        {
-            throw new NotImplementedException();
-        }
-
-        /*
-         * If an income transaction is deleted, the account balance will be decreased by the amount of the transaction.
-         */
-        private async Task<Result<bool>> HandleIncomeTransaction(Entities.Transaction transaction)
         {
             var bankAccount = await dbContext.BankAccounts.FindAsync(transaction.LinkedAccountId);
             if (bankAccount == null)
@@ -86,6 +60,59 @@ public static class DeleteTransaction
                 return Result.Failure<bool>(new Error("DeleteTransaction.BankAccountNotFound",
                     $"Bank account with id {transaction.LinkedAccountId} not found"));
             }
+
+            return transaction.Type switch
+            {
+                TransactionType.Income => HandleIncomeTransaction(transaction, bankAccount),
+                TransactionType.Expense => await HandleExpenseTransaction(transaction, bankAccount),
+                TransactionType.NotTrackable => HandleNotTrackableTransaction(transaction, bankAccount),
+                _ => Result.Failure<bool>(new Error("DeleteTransaction.UnknownTransactionType",
+                    $"Unknown transaction type {transaction.Type}"))
+            };
+        }
+
+        private bool HandleNotTrackableTransaction(Entities.Transaction transaction, Entities.BankAccount bankAccount)
+        {
+            bankAccount.CurrentBalance += transaction.Amount;
+            dbContext.BankAccounts.Update(bankAccount);
+            return true;
+        }
+
+        /*
+         * If an expense transaction is deleted, the account balance will be increased by the amount of the transaction.
+         * The category balance will be increased by the amount of the transaction. (in case of custom the general category target will be increased as well)
+         * if the category has a different currency it needs to be converted to the account 
+         */
+        private async Task<Result<bool>> HandleExpenseTransaction(Entities.Transaction transaction, Entities.BankAccount bankAccount)
+        {
+            var category = await dbContext.Categories
+                .Include(x => x.GeneralCategory)
+                .FirstOrDefaultAsync(x => x.Id == transaction.LinkedCategoryId);
+            
+            var effect = await dbContext.TransactionCategoryEffects
+                .FirstOrDefaultAsync(x => x.TransactionId == transaction.Id && x.CategoryId == transaction.LinkedCategoryId);
+            
+            if (category == null)
+            {
+                return Result.Failure<bool>(new Error("DeleteTransaction.CategoryNotFound",
+                    $"Category with id {transaction.LinkedCategoryId} not found"));
+            }
+            
+            if (effect == null)
+            {
+                return Result.Failure<bool>(new Error("DeleteTransaction.TransactionCategoryEffectNotFound",
+                    $"TransactionCategoryEffect with transaction id {transaction.Id} and category id {transaction.LinkedCategoryId} not found"));
+            }
+
+            TransactionExtensions.HandleExpenseTransactionDelete(dbContext, bankAccount, category, effect);
+            return true;
+        }
+
+        /*
+         * If an income transaction is deleted, the account balance will be decreased by the amount of the transaction.
+         */
+        private bool HandleIncomeTransaction(Entities.Transaction transaction, Entities.BankAccount bankAccount)
+        {
             bankAccount.CurrentBalance -= transaction.Amount;
             dbContext.BankAccounts.Update(bankAccount);
             return true;
@@ -101,5 +128,28 @@ public static class DeleteTransaction
             }
             return Result.Success();
         }
+    }
+}
+
+public class DeleteTransactionEndpoint : ICarterModule
+{ 
+    private const string RouteTag = "Transactions";
+
+    public void AddRoutes(IEndpointRouteBuilder app)
+    {
+        app.MapDelete("api/transaction/{transactionId:guid}", async (Guid transactionId, ISender sender) =>
+        {
+            
+            var command = new DeleteTransaction.Command
+            {
+                TransactionId = transactionId
+            };
+
+            var result = await sender.Send(command);
+
+            return result.IsFailure
+                ? Results.BadRequest(result)
+                : Results.Ok(result);
+        }).WithTags(RouteTag);
     }
 }
